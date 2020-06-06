@@ -1,4 +1,6 @@
+import datetime
 import os
+import pandas as pd
 import psycopg2
 
 from dotenv import load_dotenv, find_dotenv
@@ -13,6 +15,10 @@ load_dotenv()
 
 ############################################################################################################
 
+@app.route("/") 
+def home_view(): 
+        return "<h1>Welcome to Sauti DS</h1>"
+
 
 @app.route('/verifyconn', methods=['GET'])
 def verify_db_conn():
@@ -21,11 +27,11 @@ def verify_db_conn():
     '''
     try:
 
-        connection = psycopg2.connect(user=os.environ.get('eleph_db_user'),
-                            password=os.environ.get('eleph_db_password'),
-                            host=os.environ.get('eleph_db_host'),
-                            port=os.environ.get('eleph_db_port'),
-                            database=os.environ.get('eleph_db_name'))
+        labs_conn = psycopg2.connect(user=os.environ.get('aws_db_user'),
+                            password=os.environ.get('aws_db_password'),
+                            host=os.environ.get('aws_db_host'),
+                            port=os.environ.get('aws_db_port'),
+                            database=os.environ.get('aws_db_name'))
 
         return 'Connection verified.'
 
@@ -35,13 +41,227 @@ def verify_db_conn():
 
     finally:
 
-        if (connection):
-            connection.close()
+        if (labs_conn):
+            labs_conn.close()
 
 @app.errorhandler(404)
 def page_not_found(e):
     
     return '<h1>Error 404</h1><p> Sorry, I cannot show anything arround here.</p><img src="/static/404.png">', 404
+
+
+###############################################################
+
+#############  Pulling all the data from tables.  #############
+
+###############################################################
+
+@app.route("/data-quality-ws/")
+def get_table_dqws():
+        labs_conn = psycopg2.connect(user=os.environ.get('aws_db_user'),
+            password=os.environ.get('aws_db_password'),
+            host=os.environ.get('aws_db_host'),
+            port=os.environ.get('aws_db_port'),
+            database=os.environ.get('aws_db_name'))
+        labs_curs = labs_conn.cursor()
+
+        Q_select_all = """SELECT * FROM qc_wholesale_observed_price;"""
+        labs_curs.execute(Q_select_all)
+        print("\nSELECT * Query Excecuted.")
+
+        rows = labs_curs.fetchall()
+
+        df = pd.DataFrame(rows, columns=[
+                "id", "market", "product", "source",
+                "start", "end", "timeliness", "data_length",
+                "completeness", "duplicates", "mode_D", "data_points",
+                "DQI", "DQI_cat"
+        ])
+
+        Q_select_all = """SELECT * FROM markets;"""
+        labs_curs.execute(Q_select_all)
+        print("\nSELECT * Query Excecuted.")
+
+        rowsM = labs_curs.fetchall()
+        dfM = pd.DataFrame(rowsM, columns=["id", "market_id", "market_name", "country_code"])
+        
+        Q_select_all = """SELECT id, source_name FROM sources;"""
+        labs_curs.execute(Q_select_all)
+        print("\nSELECT * Query Excecuted.")
+
+        rowsM = labs_curs.fetchall()
+        dfS = pd.DataFrame(rowsM, columns=["id", "source_name"])
+
+        labs_curs.close()
+        labs_conn.close()
+        print("Cursor and Connection Closed.")
+
+
+        merged = df.merge(dfM, left_on='market', right_on='market_id')
+        merged["id"] = merged["id_x"]
+        merged = merged.drop(["id_x", "id_y", "market_id"], axis=1)
+        merged = merged.merge(dfS, left_on='source', right_on='id')
+        merged["id"] = merged["id_x"]
+        merged = merged.drop(["id_x", "id_y", "source"], axis=1)
+        cols = ['id', 'market_name','country_code', 'product', 'source_name', 'start', 'end', 'timeliness',
+        'data_length', 'completeness', 'duplicates', 'mode_D', 'data_points',
+        'DQI', 'DQI_cat']
+        merged = merged[cols]
+        merged['price_category'] = "wholesale"
+
+        result = []
+        for _, row in merged.iterrows():
+                        result.append(dict(row))
+        return jsonify(result)
+
+@app.route("/data-quality-rt/")
+def get_table_dqrt():
+        labs_conn = psycopg2.connect(user=os.environ.get('aws_db_user'),
+            password=os.environ.get('aws_db_password'),
+            host=os.environ.get('aws_db_host'),
+            port=os.environ.get('aws_db_port'),
+            database=os.environ.get('aws_db_name'))
+        labs_curs = labs_conn.cursor()
+
+        Q_select_all = """SELECT * FROM qc_retail_observed_price;"""
+        labs_curs.execute(Q_select_all)
+        print("\nSELECT * Query Excecuted.")
+
+        rows = labs_curs.fetchall()
+
+        df = pd.DataFrame(rows, columns=[
+                "id", "market", "product", "source",
+                "start", "end", "timeliness", "data_length",
+                "completeness", "duplicates", "mode_D", "data_points",
+                "DQI", "DQI_cat"
+        ])
+
+        Q_select_all = """SELECT * FROM markets;"""
+        labs_curs.execute(Q_select_all)
+        print("\nSELECT * Query Excecuted.")
+
+        rowsM = labs_curs.fetchall()
+        dfM = pd.DataFrame(rowsM, columns=["id", "market_id", "market_name", "country_code"])
+
+        Q_select_all = """SELECT id, source_name FROM sources;"""
+        labs_curs.execute(Q_select_all)
+        print("\nSELECT * Query Excecuted.")
+
+        rowsM = labs_curs.fetchall()
+        dfS = pd.DataFrame(rowsM, columns=["id", "source_name"])
+
+        labs_curs.close()
+        labs_conn.close()
+        print("Cursor and Connection Closed.")
+
+
+        merged = df.merge(dfM, left_on='market', right_on='market_id')
+        merged["id"] = merged["id_x"]
+        merged = merged.drop(["id_x", "id_y", "market_id"], axis=1)
+        merged = merged.merge(dfS, left_on='source', right_on='id')
+        merged["id"] = merged["id_x"]
+        merged = merged.drop(["id_x", "id_y", "source"], axis=1)
+        cols = ['id', 'market_name','country_code', 'product', 'source_name', 'start', 'end', 'timeliness',
+        'data_length', 'completeness', 'duplicates', 'mode_D', 'data_points',
+        'DQI', 'DQI_cat']
+        merged = merged[cols]
+        merged['price_category'] = "retail"
+
+        result = []
+        for _, row in merged.iterrows():
+                        result.append(dict(row))
+        return jsonify(result)
+
+@app.route("/price-status-ws/")
+def get_table_psws():
+
+    labs_conn = psycopg2.connect(user=os.environ.get('aws_db_user'),
+                password=os.environ.get('aws_db_password'),
+                host=os.environ.get('aws_db_host'),
+                port=os.environ.get('aws_db_port'),
+                database=os.environ.get('aws_db_name'))
+    labs_curs = labs_conn.cursor()
+    
+    Q_select_all = """SELECT product_name, market_id,
+                    source_id, currency_code, date_price,
+                        observed_price, observed_class, stressness
+                        FROM wholesale_prices;"""
+    labs_curs.execute(Q_select_all)
+    print("\nSELECT * Query Excecuted.")
+
+    rows = labs_curs.fetchall()
+
+    df = pd.DataFrame(rows, columns= [
+                    "product_name", "market_id", "source_id",
+                    "currency_code", "date_price", "observed_price",
+                    "observed_class", "stressness"
+            ])
+    labs_curs.close()
+    labs_conn.close()
+    print("Cursor and Connection Closed.")
+
+    df['market'] = df['market_id'].str.split().str[0:-2].str.join(" ")
+    df['country'] = df['market_id'].str.split().str[-1]
+    df['date_price'] = df['date_price'].apply(lambda x: datetime.date.strftime(x,"%y/%m/%d"))
+    df['stressness'] = df['stressness'].apply(lambda x: round(x,4)*100 + '%' if type(x) == float else None)
+    cols = ['country', 'market', 'product_name','date_price', 'observed_price', 'currency_code', 'observed_class', 'stressness',
+            'market_id', 'source_id']
+    df = df[cols]
+    df['price_category'] = "wholesale"
+
+    result = []
+    for _, row in df.iterrows():
+            result.append(dict(row))
+    return jsonify(result)
+
+@app.route("/price-status-rt/")
+def get_table_psrt():
+
+    labs_conn = psycopg2.connect(user=os.environ.get('aws_db_user'),
+                password=os.environ.get('aws_db_password'),
+                host=os.environ.get('aws_db_host'),
+                port=os.environ.get('aws_db_port'),
+                database=os.environ.get('aws_db_name'))
+    labs_curs = labs_conn.cursor()
+    
+    Q_select_all = """SELECT product_name, market_id,
+                    source_id, currency_code, date_price,
+                        observed_price, observed_class, stressness
+                        FROM retail_prices;"""
+    labs_curs.execute(Q_select_all)
+    print("\nSELECT * Query Excecuted.")
+
+    rows = labs_curs.fetchall()
+
+    df = pd.DataFrame(rows, columns= [
+                    "product_name", "market_id", "source_id",
+                    "currency_code", "date_price", "observed_price",
+                    "observed_class", "stressness"
+            ])
+    labs_curs.close()
+    labs_conn.close()
+    print("Cursor and Connection Closed.")
+
+    df['market'] = df['market_id'].str.split().str[0:-2].str.join(" ")
+    df['country'] = df['market_id'].str.split().str[-1]
+    df['date_price'] = df['date_price'].apply(lambda x: datetime.date.strftime(x,"%y/%m/%d"))
+    df['stressness'] = df['stressness'].apply(lambda x: round(x,4)*100 + '%' if type(x) == float else None)
+    cols = ['country', 'market', 'product_name','date_price', 'observed_price', 'currency_code', 'observed_class', 'stressness',
+            'market_id', 'source_id']
+    df = df[cols]
+    df['price_category'] = "retail"
+
+    result = []
+    for _, row in df.iterrows():
+            result.append(dict(row))
+    return jsonify(result)
+
+
+########################################################################
+
+#############  Pulling specific product market pair data.  #############
+
+########################################################################
 
 
 @app.route('/raw/')
@@ -53,23 +273,23 @@ def query_raw_data():
     country_code = query_parameters.get('country_code')
     source_name = query_parameters.get('source_name')
 
-    connection = psycopg2.connect(user=os.environ.get('eleph_db_user'),
-                        password=os.environ.get('eleph_db_password'),
-                        host=os.environ.get('eleph_db_host'),
-                        port=os.environ.get('eleph_db_port'),
-                        database=os.environ.get('eleph_db_name'))
+    labs_conn = psycopg2.connect(user=os.environ.get('aws_db_user'),
+                        password=os.environ.get('aws_db_password'),
+                        host=os.environ.get('aws_db_host'),
+                        port=os.environ.get('aws_db_port'),
+                        database=os.environ.get('aws_db_name'))
 
-    cursor = connection.cursor()
+    labs_curs = labs_conn.cursor()
 
     if source_name:
 
-        cursor.execute('''
+        labs_curs.execute('''
                     SELECT id
                     FROM sources
                     WHERE source_name = %s
         ''', (source_name,))
 
-        source_id = cursor.fetchall()
+        source_id = labs_curs.fetchall()
 
         if not source_id:
 
@@ -95,13 +315,13 @@ def query_raw_data():
         query += ' market_id=%s AND'
         to_filter.append(market_id)
     if source_name:
-        cursor.execute('''
+        labs_curs.execute('''
                 SELECT id
                 FROM sources
                 WHERE source_name = %s
         ''', (source_name,))
 
-        source_id = cursor.fetchall()
+        source_id = labs_curs.fetchall()
 
         if source_id:
 
@@ -113,9 +333,9 @@ def query_raw_data():
 
     query = query[:-4] + ';'
 
-    cursor.execute(query, to_filter)
+    labs_curs.execute(query, to_filter)
 
-    result = cursor.fetchall()
+    result = labs_curs.fetchall()
 
     if result:
 
@@ -125,13 +345,13 @@ def query_raw_data():
         
         return page_not_found(404)
 
-    if connection:
+    if labs_conn:
         
-        connection.close()
+        labs_conn.close()
 
 
-@app.route('/bc-retail/')
-def query_bc_retail_data():
+@app.route('/retail/')
+def query_retail_data():
 
     query_parameters = request.args
     product_name = query_parameters.get('product_name')
@@ -139,23 +359,23 @@ def query_bc_retail_data():
     country_code = query_parameters.get('country_code')
     source_name = query_parameters.get('source_name')
 
-    connection = psycopg2.connect(user=os.environ.get('eleph_db_user'),
-                        password=os.environ.get('eleph_db_password'),
-                        host=os.environ.get('eleph_db_host'),
-                        port=os.environ.get('eleph_db_port'),
-                        database=os.environ.get('eleph_db_name'))
+    labs_conn = psycopg2.connect(user=os.environ.get('aws_db_user'),
+                        password=os.environ.get('aws_db_password'),
+                        host=os.environ.get('aws_db_host'),
+                        port=os.environ.get('aws_db_port'),
+                        database=os.environ.get('aws_db_name'))
 
-    cursor = connection.cursor()
+    labs_curs = labs_conn.cursor()
 
     if source_name:
 
-        cursor.execute('''
+        labs_curs.execute('''
                     SELECT id
                     FROM sources
                     WHERE source_name = %s
         ''', (source_name,))
 
-        source_id = cursor.fetchall()
+        source_id = labs_curs.fetchall()
 
         if not source_id:
 
@@ -167,7 +387,7 @@ def query_bc_retail_data():
 
     query = ''' 
             SELECT *
-            FROM bc_retail_prices
+            FROM retail_prices
             WHERE
             '''
     to_filter = []
@@ -181,13 +401,13 @@ def query_bc_retail_data():
         query += ' market_id=%s AND'
         to_filter.append(market_id)
     if source_name:
-        cursor.execute('''
+        labs_curs.execute('''
                 SELECT id
                 FROM sources
                 WHERE source_name = %s
         ''', (source_name,))
 
-        source_id = cursor.fetchall()
+        source_id = labs_curs.fetchall()
 
         if source_id:
 
@@ -199,9 +419,9 @@ def query_bc_retail_data():
 
     query = query[:-4] + ';'
 
-    cursor.execute(query, to_filter)
+    labs_curs.execute(query, to_filter)
 
-    result = cursor.fetchall()
+    result = labs_curs.fetchall()
 
     print(result)
 
@@ -213,12 +433,12 @@ def query_bc_retail_data():
         
         return page_not_found(404)
 
-    if connection:
+    if labs_conn:
         
-        connection.close()
+        labs_conn.close()
 
-@app.route('/bc-wholesale/')
-def query_bc_wholesale_data():
+@app.route('/wholesale/')
+def query_wholesale_data():
 
     query_parameters = request.args
     product_name = query_parameters.get('product_name')
@@ -226,23 +446,23 @@ def query_bc_wholesale_data():
     country_code = query_parameters.get('country_code')
     source_name = query_parameters.get('source_name')
 
-    connection = psycopg2.connect(user=os.environ.get('eleph_db_user'),
-                        password=os.environ.get('eleph_db_password'),
-                        host=os.environ.get('eleph_db_host'),
-                        port=os.environ.get('eleph_db_port'),
-                        database=os.environ.get('eleph_db_name'))
+    labs_conn = psycopg2.connect(user=os.environ.get('aws_db_user'),
+                        password=os.environ.get('aws_db_password'),
+                        host=os.environ.get('aws_db_host'),
+                        port=os.environ.get('aws_db_port'),
+                        database=os.environ.get('aws_db_name'))
 
-    cursor = connection.cursor()
+    labs_curs = labs_conn.cursor()
 
     if source_name:
 
-        cursor.execute('''
+        labs_curs.execute('''
                     SELECT id
                     FROM sources
                     WHERE source_name = %s
         ''', (source_name,))
 
-        source_id = cursor.fetchall()
+        source_id = labs_curs.fetchall()
 
         if not source_id:
 
@@ -254,7 +474,7 @@ def query_bc_wholesale_data():
 
     query = ''' 
             SELECT *
-            FROM bc_wholesale_prices
+            FROM wholesale_prices
             WHERE
             '''
     to_filter = []
@@ -268,13 +488,13 @@ def query_bc_wholesale_data():
         query += ' market_id=%s AND'
         to_filter.append(market_id)
     if source_name:
-        cursor.execute('''
+        labs_curs.execute('''
                 SELECT id
                 FROM sources
                 WHERE source_name = %s
         ''', (source_name,))
 
-        source_id = cursor.fetchall()
+        source_id = labs_curs.fetchall()
 
         if source_id:
 
@@ -286,9 +506,9 @@ def query_bc_wholesale_data():
 
     query = query[:-4] + ';'
 
-    cursor.execute(query, to_filter)
+    labs_curs.execute(query, to_filter)
 
-    result = cursor.fetchall()
+    result = labs_curs.fetchall()
 
     print(result)
 
@@ -300,6 +520,8 @@ def query_bc_wholesale_data():
         
         return page_not_found(404)
 
-    if connection:
+    if labs_conn:
         
-        connection.close()
+        labs_conn.close()
+
+    

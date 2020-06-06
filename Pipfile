@@ -10,6 +10,8 @@ psycopg2-binary = "*"
 python-dotenv = "*"
 flask = "*"
 gunicorn = "*"
+pandas = "*"
+datetime = "*"
 
 [requires]
 python_version = "3.7"
