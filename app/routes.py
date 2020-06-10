@@ -182,9 +182,10 @@ def get_table_psws():
                 database=os.environ.get('aws_db_name'))
     labs_curs = labs_conn.cursor()
     
-    Q_select_all = """SELECT product_name, market_id,
-                    source_id, currency_code, date_price,
-                        observed_price, observed_class, stressness
+    Q_select_all = """SELECT product_name, market_name, country_code,
+                        source_name, currency_code, date_price,
+                        observed_price, observed_class, class_method,
+                        stressness
                         FROM wholesale_prices;"""
     labs_curs.execute(Q_select_all)
     print("\nSELECT * Query Excecuted.")
@@ -192,20 +193,18 @@ def get_table_psws():
     rows = labs_curs.fetchall()
 
     df = pd.DataFrame(rows, columns= [
-                    "product_name", "market_id", "source_id",
-                    "currency_code", "date_price", "observed_price",
-                    "observed_class", "stressness"
+                    "product_name", "market_name", "country_code", "source_name",
+                    "currency_code", "date_price", "observed_price", 
+                    "observed_class", "class_method", "stressness"
             ])
     labs_curs.close()
     labs_conn.close()
     print("Cursor and Connection Closed.")
 
-    df['market'] = df['market_id'].str.split().str[0:-2].str.join(" ")
-    df['country'] = df['market_id'].str.split().str[-1]
     df['date_price'] = df['date_price'].apply(lambda x: datetime.date.strftime(x,"%y/%m/%d"))
-    df['stressness'] = df['stressness'].apply(lambda x: round(x,4)*100 + '%' if type(x) == float else None)
-    cols = ['country', 'market', 'product_name','date_price', 'observed_price', 'currency_code', 'observed_class', 'stressness',
-            'market_id', 'source_id']
+    df['stressness'] = df['stressness'].apply(lambda x: round(x*100,2) if type(x) == float else None)
+    cols = ['country_code', 'market_name', 'product_name','date_price', 'observed_price', 'currency_code', 'observed_class', 
+            'class_method', 'source_name']
     df = df[cols]
     df['price_category'] = "wholesale"
 
@@ -224,9 +223,10 @@ def get_table_psrt():
                 database=os.environ.get('aws_db_name'))
     labs_curs = labs_conn.cursor()
     
-    Q_select_all = """SELECT product_name, market_id,
-                    source_id, currency_code, date_price,
-                        observed_price, observed_class, stressness
+    Q_select_all = """SELECT product_name, market_name, country_code,
+                        source_name, currency_code, date_price,
+                        observed_price, observed_class, class_method,
+                        stressness
                         FROM retail_prices;"""
     labs_curs.execute(Q_select_all)
     print("\nSELECT * Query Excecuted.")
@@ -234,21 +234,22 @@ def get_table_psrt():
     rows = labs_curs.fetchall()
 
     df = pd.DataFrame(rows, columns= [
-                    "product_name", "market_id", "source_id",
-                    "currency_code", "date_price", "observed_price",
-                    "observed_class", "stressness"
+                    "product_name", "market_name", "country_code", "source_name",
+                    "currency_code", "date_price", "observed_price", 
+                    "observed_class", "class_method", "stressness"
             ])
     labs_curs.close()
     labs_conn.close()
     print("Cursor and Connection Closed.")
 
-    df['market'] = df['market_id'].str.split().str[0:-2].str.join(" ")
-    df['country'] = df['market_id'].str.split().str[-1]
+    print(df)
+
+
     df['date_price'] = df['date_price'].apply(lambda x: datetime.date.strftime(x,"%y/%m/%d"))
-    df['stressness'] = df['stressness'].apply(lambda x: round(x,4)*100 + '%' if type(x) == float else None)
-    cols = ['country', 'market', 'product_name','date_price', 'observed_price', 'currency_code', 'observed_class', 'stressness',
-            'market_id', 'source_id']
-    df = df[cols]
+    df['stressness'] = df['stressness'].apply(lambda x: round(x*100,2) if type(x) == float else None)
+    cols = ['country_code', 'market_name', 'product_name','date_price', 'observed_price', 'currency_code', 'observed_class', 
+            'class_method', 'source_name']
+    # df = df[cols]
     df['price_category'] = "retail"
 
     result = []
@@ -256,6 +257,94 @@ def get_table_psrt():
             result.append(dict(row))
     return jsonify(result)
 
+
+
+@app.route("/price-status-ws/labeled/")
+def get_table_psws_labeled():
+
+    labs_conn = psycopg2.connect(user=os.environ.get('aws_db_user'),
+                password=os.environ.get('aws_db_password'),
+                host=os.environ.get('aws_db_host'),
+                port=os.environ.get('aws_db_port'),
+                database=os.environ.get('aws_db_name'))
+    labs_curs = labs_conn.cursor()
+    
+    Q_select_all = """SELECT product_name, market_name, country_code,
+                        source_name, currency_code, date_price,
+                        observed_price, observed_class, class_method,
+                        stressness
+                        FROM wholesale_prices
+                        WHERE observed_class IS NOT NULL;"""
+    labs_curs.execute(Q_select_all)
+    print("\nSELECT * Query Excecuted.")
+
+    rows = labs_curs.fetchall()
+
+    df = pd.DataFrame(rows, columns= [
+                    "product_name", "market_name", "country_code", "source_name",
+                    "currency_code", "date_price", "observed_price", 
+                    "observed_class", "class_method", "stressness"
+            ])
+    labs_curs.close()
+    labs_conn.close()
+    print("Cursor and Connection Closed.")
+
+    df['date_price'] = df['date_price'].apply(lambda x: datetime.date.strftime(x,"%y/%m/%d"))
+    df['stressness'] = df['stressness'].apply(lambda x: round(x*100,2) if type(x) == float else None)
+    cols = ['country_code', 'market_name', 'product_name','date_price', 'observed_price', 'currency_code', 'observed_class', 
+            'class_method', 'source_name']
+    df = df[cols]
+    df['price_category'] = "wholesale"
+
+    result = []
+    for _, row in df.iterrows():
+            result.append(dict(row))
+    return jsonify(result)
+
+@app.route("/price-status-rt/labeled/")
+def get_table_psrt_labeled():
+
+    labs_conn = psycopg2.connect(user=os.environ.get('aws_db_user'),
+                password=os.environ.get('aws_db_password'),
+                host=os.environ.get('aws_db_host'),
+                port=os.environ.get('aws_db_port'),
+                database=os.environ.get('aws_db_name'))
+    labs_curs = labs_conn.cursor()
+    
+    Q_select_all = """SELECT product_name, market_name, country_code,
+                        source_name, currency_code, date_price,
+                        observed_price, observed_class, class_method,
+                        stressness
+                        FROM retail_prices
+                        WHERE observed_class IS NOT NULL;"""
+    labs_curs.execute(Q_select_all)
+    print("\nSELECT * Query Excecuted.")
+
+    rows = labs_curs.fetchall()
+
+    df = pd.DataFrame(rows, columns= [
+                    "product_name", "market_name", "country_code", "source_name",
+                    "currency_code", "date_price", "observed_price", 
+                    "observed_class", "class_method", "stressness"
+            ])
+    labs_curs.close()
+    labs_conn.close()
+    print("Cursor and Connection Closed.")
+
+    print(df.dtypes)
+
+
+    df['date_price'] = df['date_price'].apply(lambda x: datetime.date.strftime(x,"%y/%m/%d"))
+    df['stressness'] = df['stressness'].apply(lambda x: round(x*100,2) if type(x) == float else None)
+    cols = ['country_code', 'market_name', 'product_name','date_price', 'observed_price', 'currency_code', 'observed_class', 
+            'class_method', 'source_name']
+    # df = df[cols]
+    df['price_category'] = "retail"
+
+    result = []
+    for _, row in df.iterrows():
+            result.append(dict(row))
+    return jsonify(result)
 
 ########################################################################
 
