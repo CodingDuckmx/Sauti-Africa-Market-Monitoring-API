@@ -617,6 +617,7 @@ def query_retail_data():
         print(df.dtypes)
         df['date_price'] = df['date_price'].apply(lambda x: datetime.date.strftime(x,"%y/%m/%d"))
         df['date_run_model'] = df['date_run_model'].apply(lambda x: datetime.date.strftime(x,"%y/%m/%d") if x is not None else x)
+        df['stressness'] = df['stressness'].apply(lambda x: round(x*100,2) if type(x) == float else None)
         df = df.drop(labels=['id'],axis=1)
 
         labs_curs.execute(query_1,to_filter)
@@ -640,7 +641,7 @@ def query_retail_data():
 
             if DQI_info:
 
-                stats_dict['DQI'] =  DQI_info[0][-2]
+                stats_dict['DQI'] =  round(DQI_info[0][-2],2)
                 stats_dict['DQI_cat'] =  DQI_info[0][-1]
 
         else:
@@ -756,6 +757,7 @@ def query_wholesale_data():
         print(df.dtypes)
         df['date_price'] = df['date_price'].apply(lambda x: datetime.date.strftime(x,"%y/%m/%d"))
         df['date_run_model'] = df['date_run_model'].apply(lambda x: datetime.date.strftime(x,"%y/%m/%d") if x is not None else x)
+        df['stressness'] = df['stressness'].apply(lambda x: round(x*100,2) if type(x) == float else None)
         df = df.drop(labels=['id'],axis=1)
 
         labs_curs.execute(query_1,to_filter)
@@ -766,7 +768,7 @@ def query_wholesale_data():
 
         if stats:
 
-            stats_dict = {'start_date' : datetime.date.strftime(stats[0][5],"%y/%m/%d"), 'end_date': datetime.date.strftime(stats[0][6],"%y/%m/%d"), 'Mode_D': stats[0][12], 'number_of_observations': stats[0][13], 'mean': stats[0][14], 'min_price': stats[0][16], 'max_price': stats[0][20], 'days_between_start_end': stats[0][21], 'completeness': round(stats[0][22]*100 / .7123,2), 'DQI': 'not available', 'DQI_cat': 'not available'}
+            stats_dict = {'start_date' : datetime.date.strftime(stats[0][5],"%y/%m/%d"), 'end_date': datetime.date.strftime(stats[0][6],"%y/%m/%d"), 'Mode_D': stats[0][12], 'number_of_observations': stats[0][13], 'mean': round(stats[0][14],2), 'min_price': stats[0][16], 'max_price': stats[0][20], 'days_between_start_end': stats[0][21], 'completeness': round(stats[0][22]*100 / .7123,2), 'DQI': 'not available', 'DQI_cat': 'not available'}
 
             labs_curs.execute('''
             SELECT *
@@ -779,7 +781,7 @@ def query_wholesale_data():
 
             if DQI_info:
 
-                stats_dict['DQI'] =  DQI_info[0][-2]
+                stats_dict['DQI'] =  round(DQI_info[0][-2],2)
                 stats_dict['DQI_cat'] =  DQI_info[0][-1]
 
         else:
