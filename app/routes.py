@@ -242,9 +242,6 @@ def get_table_psrt():
     labs_conn.close()
     print("Cursor and Connection Closed.")
 
-    print(df)
-
-
     df['date_price'] = df['date_price'].apply(lambda x: datetime.date.strftime(x,"%y/%m/%d"))
     df['stressness'] = df['stressness'].apply(lambda x: round(x*100,2) if type(x) == float else None)
     cols = ['country_code', 'market_name', 'product_name','date_price', 'observed_price', 'currency_code', 'observed_class', 
@@ -293,7 +290,7 @@ def get_table_psws_labeled():
     df['stressness'] = df['stressness'].apply(lambda x: round(x*100,2) if type(x) == float else None)
     cols = ['country_code', 'market_name', 'product_name','date_price', 'observed_price', 'currency_code', 'observed_class', 
             'class_method', 'source_name']
-    df = df[cols]
+    # df = df[cols]
     df['price_category'] = "wholesale"
 
     result = []
@@ -345,6 +342,101 @@ def get_table_psrt_labeled():
     for _, row in df.iterrows():
             result.append(dict(row))
     return jsonify(result)
+
+
+@app.route("/price-status-ws/labeled/latest/")
+def get_table_psws_labeled_latest():
+
+    labs_conn = psycopg2.connect(user=os.environ.get('aws_db_user'),
+                password=os.environ.get('aws_db_password'),
+                host=os.environ.get('aws_db_host'),
+                port=os.environ.get('aws_db_port'),
+                database=os.environ.get('aws_db_name'))
+    labs_curs = labs_conn.cursor()
+    
+    Q_select_all = """SELECT product_name, market_name, country_code,
+                        source_name, currency_code, date_price,
+                        observed_price, observed_class, class_method,
+                        stressness
+                        FROM wholesale_prices
+                        WHERE observed_class IS NOT NULL;"""
+    labs_curs.execute(Q_select_all)
+    print("\nSELECT * Query Excecuted.")
+
+    rows = labs_curs.fetchall()
+
+    df = pd.DataFrame(rows, columns= [
+                    "product_name", "market_name", "country_code", "source_name",
+                    "currency_code", "date_price", "observed_price", 
+                    "observed_class", "class_method", "stressness"
+            ])
+    labs_curs.close()
+    labs_conn.close()
+    print("Cursor and Connection Closed.")
+
+    list_to_drop = df[df.sort_values(by=['date_price'], ascending=False).duplicated(['product_name', 'market_name', 'source_name','currency_code'], keep='first')].index
+
+    df = df.drop(labels = list_to_drop, axis=0)
+
+    df['date_price'] = df['date_price'].apply(lambda x: datetime.date.strftime(x,"%y/%m/%d"))
+    df['stressness'] = df['stressness'].apply(lambda x: round(x*100,2) if type(x) == float else None)
+    cols = ['country_code', 'market_name', 'product_name','date_price', 'observed_price', 'currency_code', 'observed_class', 
+            'class_method', 'source_name']
+    # df = df[cols]
+    df['price_category'] = "wholesale"
+
+    result = []
+    for _, row in df.iterrows():
+            result.append(dict(row))
+    return jsonify(result)
+
+@app.route("/price-status-rt/labeled/latest/")
+def get_table_psrt_labeled_latest():
+
+    labs_conn = psycopg2.connect(user=os.environ.get('aws_db_user'),
+                password=os.environ.get('aws_db_password'),
+                host=os.environ.get('aws_db_host'),
+                port=os.environ.get('aws_db_port'),
+                database=os.environ.get('aws_db_name'))
+    labs_curs = labs_conn.cursor()
+    
+    Q_select_all = """SELECT product_name, market_name, country_code,
+                        source_name, currency_code, date_price,
+                        observed_price, observed_class, class_method,
+                        stressness
+                        FROM retail_prices
+                        WHERE observed_class IS NOT NULL;"""
+    labs_curs.execute(Q_select_all)
+    print("\nSELECT * Query Excecuted.")
+
+    rows = labs_curs.fetchall()
+
+    df = pd.DataFrame(rows, columns= [
+                    "product_name", "market_name", "country_code", "source_name",
+                    "currency_code", "date_price", "observed_price", 
+                    "observed_class", "class_method", "stressness"
+            ])
+    labs_curs.close()
+    labs_conn.close()
+    print("Cursor and Connection Closed.")
+
+    list_to_drop = df[df.sort_values(by=['date_price'], ascending=False).duplicated(['product_name', 'market_name', 'source_name','currency_code'], keep='first')].index
+
+    df = df.drop(labels = list_to_drop, axis=0)
+
+    df['date_price'] = df['date_price'].apply(lambda x: datetime.date.strftime(x,"%y/%m/%d"))
+    df['stressness'] = df['stressness'].apply(lambda x: round(x*100,2) if type(x) == float else None)
+    cols = ['country_code', 'market_name', 'product_name','date_price', 'observed_price', 'currency_code', 'observed_class', 
+            'class_method', 'source_name']
+    # df = df[cols]
+    df['price_category'] = "retail"
+
+    result = []
+    for _, row in df.iterrows():
+            result.append(dict(row))
+    return jsonify(result)
+
+
 
 ########################################################################
 
