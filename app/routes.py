@@ -756,7 +756,7 @@ def query_wholesale_data():
         df = pd.DataFrame(result, columns=['id', 'product_name','market_id','market_name', 'country_code','source_id', 'source_name', 'currency_code', 'unit_scale', 'date_price', 'observed_price', 'observed_class', 'class_method', 'forecasted_price', 'forecasted_class', 'forecasting_model', 'normal_band_limit', 'stress_band_limit', 'alert_band_limit', 'stressness', 'date_run_model'])
         print(df.dtypes)
         df['date_price'] = df['date_price'].apply(lambda x: datetime.date.strftime(x,"%y/%m/%d"))
-        df['date_run_model'] = df['date_run_model'].apply(lambda x: datetime.date.strftime(x,"%y/%m/%d") if x is not None else x)
+        df['date_run_model'] = df['date_run_model'].apply(lambda x: datetime.date.strftime(x,"%y/%m/%d") if isinstance(x, datetime.date) else None)
         df['stressness'] = df['stressness'].apply(lambda x: round(x*100,2) if type(x) == float else None)
         df = df.drop(labels=['id'],axis=1)
 
