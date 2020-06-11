@@ -1,4 +1,5 @@
 import datetime
+import json
 import os
 import pandas as pd
 import psycopg2
@@ -107,6 +108,8 @@ def get_table_dqws():
         'data_length', 'completeness', 'duplicates', 'mode_D', 'data_points',
         'DQI', 'DQI_cat']
         merged = merged[cols]
+        merged['start'] = merged['start'] .apply(lambda x: datetime.date.strftime(x,"%y/%m/%d"))
+        merged['end'] = merged['end'].apply(lambda x: datetime.date.strftime(x,"%y/%m/%d"))
         merged['price_category'] = "wholesale"
 
         result = []
@@ -165,6 +168,8 @@ def get_table_dqrt():
         'data_length', 'completeness', 'duplicates', 'mode_D', 'data_points',
         'DQI', 'DQI_cat']
         merged = merged[cols]
+        merged['start'] = merged['start'] .apply(lambda x: datetime.date.strftime(x,"%y/%m/%d"))
+        merged['end'] = merged['end'].apply(lambda x: datetime.date.strftime(x,"%y/%m/%d"))
         merged['price_category'] = "retail"
 
         result = []
@@ -754,7 +759,6 @@ def query_wholesale_data():
     if result:
 
         df = pd.DataFrame(result, columns=['id', 'product_name','market_id','market_name', 'country_code','source_id', 'source_name', 'currency_code', 'unit_scale', 'date_price', 'observed_price', 'observed_class', 'class_method', 'forecasted_price', 'forecasted_class', 'forecasting_model', 'normal_band_limit', 'stress_band_limit', 'alert_band_limit', 'stressness', 'date_run_model'])
-        print(df.dtypes)
         df['date_price'] = df['date_price'].apply(lambda x: datetime.date.strftime(x,"%y/%m/%d"))
         # df['date_run_model'] = df['date_run_model'].apply(lambda x: datetime.date.strftime(x,"%y/%m/%d") if isinstance(x, datetime.date) else None)
         df['stressness'] = df['stressness'].apply(lambda x: round(x*100,2) if type(x) == float else None)
@@ -794,7 +798,13 @@ def query_wholesale_data():
 
             result.append(dict(row))
 
-        return jsonify(result)
+        # print(result)
+
+        # final = jsonify(result)
+
+        # print(final)
+
+        return json.dumps(result)
 
     
     else:
