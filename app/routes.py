@@ -1,12 +1,11 @@
 import datetime
-import json
 import os
 import pandas as pd
 import psycopg2
 
 from dotenv import load_dotenv, find_dotenv
 from flask import current_app as app
-from flask import jsonify, request
+from flask import json, jsonify, request
 
 load_dotenv()
 
@@ -177,7 +176,7 @@ def get_table_dqrt():
                         result.append(dict(row))
         return jsonify(result)
 
-@app.route("/wholesale/pricestatus/")
+@app.route("/wholesale/price-status/")
 def get_table_psws():
 
     labs_conn = psycopg2.connect(user=os.environ.get('aws_db_user'),
@@ -387,6 +386,8 @@ def get_table_psws_labeled_latest():
     df['date_price'] = df['date_price'].apply(lambda x: datetime.date.strftime(x,"%y/%m/%d"))
     df['stressness'] = df['stressness'].apply(lambda x: round(x*100,2) if type(x) == float else None)
     df['price_category'] = "wholesale"
+
+    print(df.dtypes)
 
     result = []
     for _, row in df.iterrows():
@@ -660,7 +661,7 @@ def query_retail_data():
 
             result.append(dict(row))
 
-        return json.dumps(result, indent=4)
+        return jsonify(result)
 
     
     else:
@@ -764,12 +765,13 @@ def query_wholesale_data():
         # df['date_run_model'] = df['date_run_model'].apply(lambda x: datetime.date.strftime(x,"%y/%m/%d") if isinstance(x, datetime.date) else None)
         df['stressness'] = df['stressness'].apply(lambda x: round(x*100,2) if type(x) == float else None)
         df = df.drop(labels=['id'],axis=1)
+        df = df.iloc[:,:-8]
 
         labs_curs.execute(query_1,to_filter)
 
         stats = labs_curs.fetchall()
 
-
+        print(df.dtypes)
 
         if stats:
 
@@ -799,8 +801,8 @@ def query_wholesale_data():
 
             result.append(dict(row))
 
-        return json.dumps(result, indent=4)
-        
+        return jsonify(result)
+
     else:
         
         return page_not_found(404)
